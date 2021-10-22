@@ -58,3 +58,21 @@ Check *Upload to web-server*.
 - Enter http://HOST:PORT/api/torque as the *Web-server URL*, where HOST and PORT are your externally accessible Torque API HTTP host and port. 
 - Enter an email address in User Email Address (Same email address as in the `devices.yaml`)
 - Note that it is recommanded to use HTTP with Torque App
+
+## Endpoints
+
+Endpint | Method | Description
+---|---|---|
+/ | GET | Readme | 
+/api/torque | GET | Report statistics (For Torque App) | 
+/api/torque/sensors | GET | List all available sensors | 
+/api/debug | GET | Get debug mode | 
+/api/debug | POST | Set debug mode | 
+/api/debug | DELETE | Stop debug mode | 
+
+## MQTT Messages
+
+Topic | Description | Example
+---|---|---|
+torque/server/status | Startup completed | `{ connected: true }` | 
+torque/device/status | Data received from Torque App | Transformed data from request, names will be slugified according to mapping available in `/api/torque/sensors` | 

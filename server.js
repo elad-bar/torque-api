@@ -1,9 +1,8 @@
-const http = require('http');
-const url = require('url');
-var slugify = require('slugify');
+const express = require('express');
+const slugify = require('slugify');
 const mqtt = require('mqtt');
 const fs = require('fs');
-var md = require('markdown-it')();
+const md = require('markdown-it')();
 
 const API_PORT = 8128;
 
@@ -11,21 +10,11 @@ const TOPIC_TORQUE_DEVICE_STATUS = "torque/device/status";
 const TOPIC_TORQUE_SERVER_STATUS = "torque/server/status";
 
 const ENDPOINT_TORQUE_DATA = "/api/torque";
-const ENDPOINT_TORQUE_README_1 = "";
-const ENDPOINT_TORQUE_README_2 = "/";
-const ENDPOINT_TORQUE_FAVICON = "/favicon.ico"
+const ENDPOINT_TORQUE_SENSORS = "/api/torque/sensors";
+const ENDPOINT_HOME_1 = "";
+const ENDPOINT_HOME_2 = "/";
+const ENDPOINT_DEBUG = "/api/debug";
 
-const ENDPOINT_TORQUE_README = [
-	ENDPOINT_TORQUE_README_1,
-	ENDPOINT_TORQUE_README_2
-];
-
-const SUPPORTED_ENDPOINTS = [
-    ENDPOINT_TORQUE_README_1,
-    ENDPOINT_TORQUE_README_2,
-    ENDPOINT_TORQUE_FAVICON,
-	ENDPOINT_TORQUE_DATA
-];
 
 const CONFIG_FILE_SENSORS = "./torque.json";
 const CONFIG_FILE_MQTT = "/config/mqtt.json";
@@ -40,6 +29,7 @@ const SPECIAL_TORQUE_KEYS = [
 ];
 
 let mqttClient = null;
+const app = express();
 
 const config = {
     devices: null,
@@ -48,7 +38,16 @@ const config = {
     hasMQTTBroker: false,
     isMQTTBrokerConnected: false,
     sensors: require(CONFIG_FILE_SENSORS),
-    readmeHtml: null
+    readmeHtml: null,
+	isDebug: false,
+    slugify: {
+        replacement: '_',  // replace spaces with replacement character, defaults to `-`
+        remove: /[*+~.()/'"!:@]/g, // remove characters that match regex, defaults to `undefined`
+        lower: true,      // convert to lower case, defaults to `false`
+        strict: false,     // strip special characters except replacement, defaults to `false`
+        locale: 'en',       // language code of the locale to use
+        trim: true         // trim leading and trailing replacement chars, defaults to `true`
+      }
 };
 
 const initialize = () => {
@@ -86,11 +85,16 @@ const initialize = () => {
         config.readmeHtml = readmeHTMLContent.replace("[README]", readmeContent)
     }
     
+    config.sensors.forEach(s => {
+        s.name = slugify(s.description, config.slugify);
+    });
 
     if(config.hasDevices && config.hasMQTTBroker) {
         console.info(`Starting server on port ${API_PORT}`);
 
-        app.listen(API_PORT, '0.0.0.0');
+        bindAPIEndpoints();
+
+        app.listen(API_PORT);
     }
 };
 
@@ -119,7 +123,7 @@ const connectMQTTBroker = () => {
 
 const publishMessage = (topic, message) => {
     if(config.isMQTTBrokerConnected) {
-        data = JSON.stringify(message);
+        const data = JSON.stringify(message);
 
         mqttClient.publish(topic, data, { qos: 0, retain: false }, (error) => {
             if (error) {
@@ -136,26 +140,17 @@ const convertToReadable = (data) => {
 
     if(data !== null) {
         config.sensors.forEach(torqueSensor => {
-            const key = torqueSensor["id"];
-            const description = torqueSensor["description"];
+            const key = torqueSensor.id;
             
-            const isArray = SPECIAL_TORQUE_KEYS.includes(key);
+            const tmpDataItem = data[key];
 
-            const dataKey = isArray ? `${key}[]` : key;
-            const tmpDataItem = data[dataKey];
-
-            const dataItem = tmpDataItem !== undefined && isArray ? tmpDataItem[0] : tmpDataItem;
-
-            if(dataItem !== undefined) {
-                const name = slugify(description, {
-                    replacement: '_',  // replace spaces with replacement character, defaults to `-`
-                    remove: /[*+~.()/'"!:@]/g, // remove characters that match regex, defaults to `undefined`
-                    lower: true,      // convert to lower case, defaults to `false`
-                    strict: false,     // strip special characters except replacement, defaults to `false`
-                    locale: 'en',       // language code of the locale to use
-                    trim: true         // trim leading and trailing replacement chars, defaults to `true`
-                  });
-                result[name] = dataItem;
+            if(tmpDataItem !== undefined) {
+                const isArray = torqueSensor.type === "array";
+				const isString = torqueSensor.type === "string";
+				
+				const dataItem = isArray ? tmpDataItem[0] : tmpDataItem;
+				
+                result[torqueSensor.name] = isString ? dataItem : parseFloat(dataItem);
             }
         });
 
@@ -166,70 +161,65 @@ const convertToReadable = (data) => {
     return result;
 }
 
-const app = http.createServer((request, response) => {
-    let canProceed = true;
-    
-    const setResponseStatus = (statusCode, content) => {
-        if(canProceed) {
-            response.writeHead(statusCode);
-            response.end(content);
+const setResponseStatus = (response, statusCode, content) => {
+    response.status(statusCode);
+	response.send(content);
 
-            canProceed = statusCode === 200;
+	if(statusCode >= 400) {
+		console.error(content);
+	}
+};
 
-            if(!canProceed) {
-                console.error(content);
-            }
+const bindAPIEndpoints = () => {
+	app.get(ENDPOINT_DEBUG, function (req, res) {
+        setResponseStatus(res, 200, { debug: config.isDebug });
+    });
+	
+    app.post(ENDPOINT_DEBUG, function (req, res) {
+        config.isDebug = true;
+
+        setResponseStatus(res, 200, { debug: config.isDebug });
+    });
+
+    app.delete(ENDPOINT_DEBUG, function (req, res) {
+        config.isDebug = false;
+
+        setResponseStatus(res, 200, { debug: config.isDebug });
+    });
+
+    app.get(ENDPOINT_HOME_1, function (req, res) {
+        setResponseStatus(res, 200, config.readmeHtml);
+    });
+
+    app.get(ENDPOINT_HOME_2, function (req, res) {
+        setResponseStatus(res, 200, config.readmeHtml);
+    });
+
+    app.get(ENDPOINT_TORQUE_SENSORS, function (req, res) {
+        setResponseStatus(res, 200, config.sensors);
+    });
+
+    app.get(ENDPOINT_TORQUE_DATA, function (req, res) {
+        if (config.isDebug) {
+            console.debug(`Incoming request: ${JSON.stringify(req.query)}`);
         }
-    }
 
-    try {
-        const requestData = url.parse(request.url, true);
-        const address = requestData.pathname;
-        const isDataRequest = ENDPOINT_TORQUE_DATA === address;
-        const isFaviconRequest = ENDPOINT_TORQUE_FAVICON === address;
-        const isReadmeRequest = ENDPOINT_TORQUE_README.includes(address);
-
-        if(request.method !== 'GET') {
-            setResponseStatus(405, `${request.method} method is not supported`);
-        }
-    
-        if(!SUPPORTED_ENDPOINTS.includes(address)) {
-            setResponseStatus(400, `${address} endpoint is not supported`);
-        } 		
+        const data = convertToReadable(req.query);
 		
-        if(canProceed) {
-            if(isDataRequest) {
-                const queryParams = requestData.query;
+		if (config.isDebug) {
+            console.debug(`Parsed request: ${JSON.stringify(data)}`);
+        }
+        
+        if(data.device === undefined || data.device === null) {
+            setResponseStatus(res, 403, `Unknown device, Username: ${data.username}`);
 
-                console.info(`Incoming request: ${JSON.stringify(queryParams)}`);
+        } else {
+            publishMessage(TOPIC_TORQUE_DEVICE_STATUS, data);
 
-                const data = convertToReadable(queryParams);
-                
-                if(data.device === undefined || data.device === null) {
-                    setResponseStatus(403, `Unknown device, Username: ${data.username}`);
-    
-                } else {
-                    publishMessage(TOPIC_TORQUE_DEVICE_STATUS, data);
-    
-                    setResponseStatus(200, "OK!");
-                }           
-            } else if (isReadmeRequest) {
-                setResponseStatus(200, config.readmeHtml);
-
-            } else if (isFaviconRequest) {
-                setResponseStatus(200, "favicon");
-
-            } else {
-                setResponseStatus(404, "");
-
-            }
-        }        
-
-    } catch(ex) {
-        setResponseStatus(400, `Failed to process request, Error: ${ex}`);
-    }
-    
-});
+            setResponseStatus(res, 200, "OK!");
+        }
+    });
+};
 
 const bindMQTTBrokerEvents = () => {
     mqttClient.on('connect', () => {
