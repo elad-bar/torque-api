@@ -155,9 +155,9 @@ const app = http.createServer((request, response) => {
 
             canProceed = statusCode === 200;
 
-            const logger = canProceed ? console.info : console.error;
-
-            logger(content);
+            if(!canProceed) {
+                console.error(content);
+            }
         }
     }
 
