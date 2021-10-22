@@ -3,20 +3,35 @@ const url = require('url');
 
 const mqtt = require('mqtt');
 const fs = require('fs');
+var md = require('markdown-it')();
 
 const API_PORT = 8128;
 
 const TOPIC_TORQUE_DEVICE_STATUS = "torque/device/status";
 const TOPIC_TORQUE_SERVER_STATUS = "torque/server/status";
 
+const ENDPOINT_TORQUE_DATA = "/api/torque";
+const ENDPOINT_TORQUE_README_1 = "";
+const ENDPOINT_TORQUE_README_2 = "/";
+const ENDPOINT_TORQUE_FAVICON = "/favicon.ico"
+
+const ENDPOINT_TORQUE_README = [
+	ENDPOINT_TORQUE_README_1,
+	ENDPOINT_TORQUE_README_2
+];
+
 const SUPPORTED_ENDPOINTS = [
-    "/api/torque",
-    "/favicon.ico"
+    ENDPOINT_TORQUE_README_1,
+    ENDPOINT_TORQUE_README_2,
+    ENDPOINT_TORQUE_FAVICON,
+	ENDPOINT_TORQUE_DATA
 ];
 
 const CONFIG_FILE_SENSORS = "./sensors.json";
 const CONFIG_FILE_MQTT = "/config/mqtt.json";
 const CONFIG_FILE_DEVICES = "/config/devices.json";
+const CONFIG_FILE_README_MD = "./README.md";
+const CONFIG_FILE_README_HTML = "./README.html";
 
 let mqttClient = null;
 
@@ -26,7 +41,8 @@ const config = {
     mqtt: null,
     hasMQTTBroker: false,
     isMQTTBrokerConnected: false,
-    sensors: require(CONFIG_FILE_SENSORS)
+    sensors: require(CONFIG_FILE_SENSORS),
+    readmeHtml: null
 };
 
 const initialize = () => {
@@ -55,6 +71,15 @@ const initialize = () => {
             console.error(`No MQTT Broker configured, please check '${CONFIG_FILE_MQTT}'`);        
         }
     }
+
+    if (fs.existsSync(CONFIG_FILE_README_MD) && fs.existsSync(CONFIG_FILE_README_HTML)) {
+        const readmeFileContent = fs.readFileSync(CONFIG_FILE_README_MD, 'utf8');
+        const readmeContent = md.render(readmeFileContent);
+
+        const readmeHTMLContent = fs.readFileSync(CONFIG_FILE_README_HTML, 'utf8');
+        config.readmeHtml = readmeHTMLContent.replace("[README]", readmeContent)
+    }
+    
 
     if(config.hasDevices && config.hasMQTTBroker) {
         console.info(`Starting server on port ${API_PORT}`);
@@ -108,7 +133,7 @@ const convertToReadable = (data) => {
 
         dataItemKeys.forEach(k => {
             const newKey = config.sensors[k];
-            const value = k.endsWith("[]") ? data[k][0] : data[k];
+            const value = data[k];
 
             result[newKey] = value;
         });
@@ -121,49 +146,63 @@ const convertToReadable = (data) => {
 }
 
 const app = http.createServer((request, response) => {
+    let canProceed = true;
+    
+    const setResponseStatus = (statusCode, content) => {
+        if(canProceed) {
+            response.writeHead(statusCode);
+            response.end(content);
+
+            canProceed = statusCode === 200;
+
+            const logger = canProceed ? console.info : console.error;
+
+            logger(content);
+        }
+    }
+
     try {
-		const requestData = url.parse(request.url, true);
-        const address = requestData.pathname;	
-        const queryParams = requestData.query;
-        const data = convertToReadable(queryParams);
-        const queryString = JSON.stringify(queryParams);
-        
-        let message = `Message handled`;
-        let responseCode = 200;
-    
-        if(data.device === undefined || data.device === null) {
-            message = `Unknown device, Username: ${data.Username}`;
-            responseCode = 403;
+        const requestData = url.parse(request.url, true);
+        const address = requestData.pathname;
+        const isDataRequest = ENDPOINT_TORQUE_DATA === address;
+        const isFaviconRequest = ENDPOINT_TORQUE_FAVICON === address;
+        const isReadmeRequest = ENDPOINT_TORQUE_README.includes(address);
+
+        if(request.method !== 'GET') {
+            setResponseStatus(405, `${request.method} method is not supported`);
         }
     
-        if(request.method !== 'GET' && responseCode === 200) {
-            message = `${request.method} method is not supported`;
-            responseCode = 405;
-        }
+        if(!SUPPORTED_ENDPOINTS.includes(address)) {
+            setResponseStatus(400, `${address} endpoint is not supported`);
+        } 		
+		
+        if(canProceed) {
+            if(isDataRequest) {
+                const queryParams = requestData.query;
+                const data = convertToReadable(queryParams);
+                
+                if(data.device === undefined || data.device === null) {
+                    setResponseStatus(403, `Unknown device, Username: ${data.Username}`);
     
-        if(!SUPPORTED_ENDPOINTS.includes(address) && responseCode === 200) {
-            message = `${address} endpoint is not supported`;
-            responseCode = 400;
-        } 
+                } else {
+                    publishMessage(TOPIC_TORQUE_DEVICE_STATUS, data);
     
-        if(responseCode == 200) {
-            console.info(`${message}, Data: ${queryString}`);
-    
-            publishMessage(TOPIC_TORQUE_DEVICE_STATUS, data);
-    
-        }  else {
-            console.warn(`Failed to handle message, Error: ${message}, Data: ${queryString}`);
-    
-            response.writeHead(responseCode);
-            response.end(message);
-        } 
+                    setResponseStatus(200, "OK!");
+                }           
+            } else if (isReadmeRequest) {
+                setResponseStatus(200, config.readmeHtml);
+
+            } else if (isFaviconRequest) {
+                setResponseStatus(200, "favicon");
+
+            } else {
+                setResponseStatus(404, "");
+
+            }
+        }        
 
     } catch(ex) {
-        const errorMessage = `Failed to process request, Error: ${ex}`
-
-        console.error(errorMessage);
-        response.writeHead(400);
-        response.end(errorMessage);
+        setResponseStatus(400, `Failed to process request, Error: ${ex}`);
     }
     
 });
