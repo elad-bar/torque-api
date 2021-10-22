@@ -15,6 +15,7 @@ Describes the relation between an email configured in Torque App to a device nam
 ```
 
 #### mqtt.json
+
 MQTT Broker configuration
 ```json
 {
@@ -41,3 +42,19 @@ MQTT Broker configuration
       - /etc/timezone:/etc/timezone:ro
 
 ```
+
+#### Setup Tourqe App
+
+In *Settings -> Data Logging & Upload*
+
+Under the *Logging Preferences* header:
+
+Touch *Select what to log*, activate the menu in the upper right, and select *Add PID to log*.
+Select items of interest.
+
+Under the *Realtime Web Upload* header:
+
+Check *Upload to web-server*.
+- Enter http://HOST:PORT/api/torque as the *Web-server URL*, where HOST and PORT are your externally accessible Torque API HTTP host and port. 
+- Enter an email address in User Email Address (Same email address as in the `devices.yaml`)
+- Note that it is recommanded to use HTTP with Torque App
