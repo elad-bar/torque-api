@@ -1,0 +1,14 @@
+{
+    "name": "ha-torque-api",
+    "version": "1.0.0",
+    "description": "Home Assistant Torque API",
+    "author": "Elad Bar <elad.bar@hotmail.com>",
+    "main": "server.js",
+    "scripts": {
+      "start": "node server.js"
+    },
+    "dependencies": {
+      "express": "^4.16.1",
+      "dotenv": "^10.0.0"
+    }
+  }
