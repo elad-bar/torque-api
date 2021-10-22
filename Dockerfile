@@ -4,7 +4,7 @@ WORKDIR /usr/src/app
 
 COPY . .
 
-RUN npm install express mqtt markdown-it
+RUN npm install express mqtt markdown-it slugify
 
 EXPOSE 8128
 

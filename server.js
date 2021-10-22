@@ -1,6 +1,6 @@
 const http = require('http');
 const url = require('url');
-
+var slugify = require('slugify');
 const mqtt = require('mqtt');
 const fs = require('fs');
 var md = require('markdown-it')();
@@ -27,11 +27,17 @@ const SUPPORTED_ENDPOINTS = [
 	ENDPOINT_TORQUE_DATA
 ];
 
-const CONFIG_FILE_SENSORS = "./sensors.json";
+const CONFIG_FILE_SENSORS = "./torque.json";
 const CONFIG_FILE_MQTT = "/config/mqtt.json";
 const CONFIG_FILE_DEVICES = "/config/devices.json";
 const CONFIG_FILE_README_MD = "./README.md";
 const CONFIG_FILE_README_HTML = "./README.html";
+
+const SPECIAL_TORQUE_KEYS = [
+    "kff1001",
+    "kff1005",
+    "kff1006"
+];
 
 let mqttClient = null;
 
@@ -129,16 +135,31 @@ const convertToReadable = (data) => {
     const result = {};
 
     if(data !== null) {
-		const dataItemKeys = Object.keys(data);
+        config.sensors.forEach(torqueSensor => {
+            const key = torqueSensor["id"];
+            const description = torqueSensor["description"];
+            
+            const isArray = SPECIAL_TORQUE_KEYS.includes(key);
 
-        dataItemKeys.forEach(k => {
-            const newKey = config.sensors[k];
-            const value = data[k];
+            const dataKey = isArray ? `${key}[]` : key;
+            const tmpDataItem = data[dataKey];
 
-            result[newKey] = value;
+            const dataItem = tmpDataItem !== undefined && isArray ? tmpDataItem[0] : tmpDataItem;
+
+            if(dataItem !== undefined) {
+                const name = slugify(description, {
+                    replacement: '_',  // replace spaces with replacement character, defaults to `-`
+                    remove: /[*+~.()/'"!:@]/g, // remove characters that match regex, defaults to `undefined`
+                    lower: true,      // convert to lower case, defaults to `false`
+                    strict: false,     // strip special characters except replacement, defaults to `false`
+                    locale: 'en',       // language code of the locale to use
+                    trim: true         // trim leading and trailing replacement chars, defaults to `true`
+                  });
+                result[name] = dataItem;
+            }
         });
 
-        const username = result.Username;
+        const username = result.username;
         result["device"] = config.devices[username];
     }
 
@@ -179,10 +200,13 @@ const app = http.createServer((request, response) => {
         if(canProceed) {
             if(isDataRequest) {
                 const queryParams = requestData.query;
+
+                console.info(`Incoming request: ${JSON.stringify(queryParams)}`);
+
                 const data = convertToReadable(queryParams);
                 
                 if(data.device === undefined || data.device === null) {
-                    setResponseStatus(403, `Unknown device, Username: ${data.Username}`);
+                    setResponseStatus(403, `Unknown device, Username: ${data.username}`);
     
                 } else {
                     publishMessage(TOPIC_TORQUE_DEVICE_STATUS, data);
