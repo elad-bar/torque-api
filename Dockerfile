@@ -4,7 +4,7 @@ WORKDIR /usr/src/app
 
 COPY . .
 
-RUN npm install express mqtt
+RUN npm install express mqtt markdown-it
 
 EXPOSE 8128
 
