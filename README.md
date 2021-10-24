@@ -1,6 +1,7 @@
 # Torque API to MQTT
-Listens to events from Torque App and publishes them via MQTT Message
+Listens to events from Torque App and publishes to MQTT Message or InfluxDB 2.0
 
+DEV
 
 ## How to use
 
@@ -24,6 +25,20 @@ MQTT Broker configuration
     "username": "user",
     "password": "password",
     "clientId": "TorqueAPI"
+}
+```
+
+#### influxdb.json
+
+InfluxDB configuration
+```json
+{
+    "host": "127.0.0.1",
+    "port": 8086,
+    "protocol": "http",
+    "bucket": "torque_v2",
+    "organization": "org",
+    "token": "token"
 }
 ```
 

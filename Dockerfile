@@ -4,8 +4,8 @@ WORKDIR /usr/src/app
 
 COPY . .
 
-RUN npm install express mqtt markdown-it slugify
+RUN npm install express mqtt markdown-it slugify influxdb-v2
 
 EXPOSE 8128
 
-CMD [ "node", "server.js" ]
+CMD [ "node", "--experimental-modules", "server.js" ]

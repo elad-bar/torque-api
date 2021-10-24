@@ -8,6 +8,10 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.16.1"
+    "express": "^4.16.1",
+    "slugify": "^1.6.1",
+    "markdown-it": "^12.2.0",
+    "influxdb-v2": "^1.0.0",
+    "mqtt": "^4.2.8"
   }
 }
