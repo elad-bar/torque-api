@@ -15,9 +15,15 @@ class ConsoleClient extends ClientBase {
         this.isConnected = true;   
     };
 
-    Send(message) {
+    SendRaw(message) {
         if(this.isConnected && this.enabled) {
-            console.info(message);
+            console.info(`Raw: ${JSON.stringify(message)}`);
+        }
+    };
+
+    SendData(message) {
+        if(this.isConnected && this.enabled) {
+            console.info(`Data: ${JSON.stringify(message)}`);
         }
     };
 };

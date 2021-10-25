@@ -3,7 +3,6 @@ const Influxdb = require('influxdb-v2');
 const {ClientBase} = require("./client.js");
 
 const CONFIG_FILE_INFLUXDB = "/config/influxdb.json";
-const MEASUREMENT_TORQUE_DEVICE_STATUS = "device";
 
 class InfluxDBClient extends ClientBase {
     constructor() {
@@ -48,7 +47,7 @@ class InfluxDBClient extends ClientBase {
         }   
     };
 
-    Send(message) {
+    SendData(message) {
         if(this.isConnected && this.enabled){
             this.client.write(
                 {
@@ -56,7 +55,7 @@ class InfluxDBClient extends ClientBase {
                   bucket: this.config.bucket, 
                 },
                 [{
-                  measurement: MEASUREMENT_TORQUE_DEVICE_STATUS, 
+                  measurement: this.config.measurement, 
                   tags: this.toTags(message),
                   fields: message
                 }]

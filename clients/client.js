@@ -25,7 +25,11 @@ class ClientBase {
 
     };
 
-    Send(message) {
+    SendRaw(message) {
+
+    };
+
+    SendData(message) {
 
     };
 }

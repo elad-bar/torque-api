@@ -1,8 +1,6 @@
 # Torque API to MQTT
 Listens to events from Torque App and publishes to MQTT Message or InfluxDB 2.0
 
-DEV
-
 ## How to use
 
 ### Prepare configuration files
@@ -24,7 +22,8 @@ MQTT Broker configuration
     "port": 1883,
     "username": "user",
     "password": "password",
-    "clientId": "TorqueAPI"
+    "clientId": "TorqueAPI",
+    "topic": "torque/device/status"
 }
 ```
 
@@ -36,9 +35,21 @@ InfluxDB configuration
     "host": "127.0.0.1",
     "port": 8086,
     "protocol": "http",
-    "bucket": "torque_v2",
+    "bucket": "torque",
     "organization": "org",
-    "token": "token"
+    "token": "token",
+    "measurement": "device"
+}
+```
+
+#### memory.json
+
+Memory configuration
+```json
+{
+    "maximumInMemory": 10000,
+    "flushInterval": 60,
+    "outputDirectory": "/data"
 }
 ```
 
@@ -80,14 +91,15 @@ Endpint | Method | Description
 ---|---|---|
 / | GET | Readme | 
 /api/torque | GET | Report statistics (For Torque App) | 
+/api/torque/raw | GET | Raw event's data, Available when `memory.json` is configured |
+/api/torque/data | GET | Processed events, Available when `memory.json` is configured |
 /api/torque/sensors | GET | List all available sensors | 
 /api/debug | GET | Get debug mode | 
 /api/debug | POST | Set debug mode | 
 /api/debug | DELETE | Stop debug mode | 
 
 ## MQTT Messages
+According to the topic configured in `mqtt.json` 
 
-Topic | Description | Example
----|---|---|
-torque/server/status | Startup completed | `{ connected: true }` | 
-torque/device/status | Data received from Torque App | Transformed data from request, names will be slugified according to mapping available in `/api/torque/sensors` | 
+## InfluxDB Event
+According to the topic configured in `measurement.json` 

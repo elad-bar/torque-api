@@ -4,12 +4,15 @@ const fs = require('fs');
 const md = require('markdown-it')();
 const {ConsoleClient} = require("../clients/console.js");
 const {MQTTClient} = require("../clients/mqtt.js");
+const {MemoryClient} = require("../clients/memory.js");
 const {InfluxDBClient} = require("../clients/influxdb.js");
 
 const API_PORT = 8128;
 
-const ENDPOINT_TORQUE_DATA = "/api/torque";
+const ENDPOINT_TORQUE = "/api/torque";
 const ENDPOINT_TORQUE_SENSORS = "/api/torque/sensors";
+const ENDPOINT_TORQUE_DATA = "/api/torque/data";
+const ENDPOINT_TORQUE_RAW = "/api/torque/raw";
 const ENDPOINT_HOME = "";
 const ENDPOINT_DEBUG = "/api/debug";
 
@@ -24,9 +27,9 @@ class TorqueAPI {
         this.sensors = require(CONFIG_FILE_SENSORS);
         this.api = express();
 
-        this.consoleClient = new ConsoleClient();
-
         this.clients = [
+            new ConsoleClient(),
+            new MemoryClient(),
             new InfluxDBClient(),
             new MQTTClient()
         ];
@@ -58,7 +61,6 @@ class TorqueAPI {
             s.name = slugify(s.description, this.slugifyConfig);
         });
 
-        this.consoleClient.Initialize();
         this.clients.forEach(c => c.Initialize());
 
         console.info(`Starting server on port ${API_PORT}`);
@@ -71,8 +73,10 @@ class TorqueAPI {
 
     bindEndpoints() {
         const clients = this.clients;
+        const consoleClient = clients[0];
+        const memoryClient = clients[1];
+        
         const devices = this.devices;
-        const consoleClient = this.consoleClient;
         const setResponseStatus = this.setResponseStatus;
         const convertToReadable = this.convertToReadable;
         const sensors = this.sensors;
@@ -102,18 +106,26 @@ class TorqueAPI {
             setResponseStatus(res, 200, sensors);
         });
     
-        this.api.get(ENDPOINT_TORQUE_DATA, function (req, res) {
-            consoleClient.Send(`Incoming request: ${JSON.stringify(req.query)}`);
+        if(memoryClient.enabled) {
+            this.api.get(ENDPOINT_TORQUE_RAW, function (req, res) {
+                setResponseStatus(res, 200, memoryClient.rawItems);
+            });
+
+            this.api.get(ENDPOINT_TORQUE_DATA, function (req, res) {
+                setResponseStatus(res, 200, memoryClient.dataItems);
+            });
+        }
+
+        this.api.get(ENDPOINT_TORQUE, function (req, res) {
+            clients.forEach(c => c.SendRaw(req.query));
     
             const data = convertToReadable(req.query, sensors, devices);
-
-            consoleClient.Send(`Parsed request: ${JSON.stringify(data)}`);
             
             if(data.device === undefined || data.device === null) {
                 setResponseStatus(res, 403, `Unknown device, Username: ${data.username}`);
     
             } else {
-                clients.forEach(c => c.Send(data));
+                clients.forEach(c => c.SendData(data));
     
                 setResponseStatus(res, 200, "OK!");
             }

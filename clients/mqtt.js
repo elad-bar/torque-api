@@ -3,7 +3,6 @@ const mqtt = require('mqtt');
 const {ClientBase} = require("./client.js");
 
 const CONFIG_FILE_MQTT = "/config/mqtt.json";
-const TOPIC_TORQUE_DEVICE_STATUS = "torque/device/status";
 
 class MQTTClient extends ClientBase {
     constructor() {
@@ -45,13 +44,13 @@ class MQTTClient extends ClientBase {
         }   
     };
 
-    Send(message) {
+    SendData(message) {
         if(this.isConnected && this.enabled){
             const data = JSON.stringify(message);
 
-            this.client.publish(TOPIC_TORQUE_DEVICE_STATUS, data, { qos: 0, retain: false }, (error) => {
+            this.client.publish(this.config.topic, data, { qos: 0, retain: false }, (error) => {
                 if (error) {
-                    console.error(`Failed to publish data: ${data} to '${topic}', Error: ${error}`);
+                    console.error(`Failed to publish data: ${data} to '${this.config.topic}', Error: ${error}`);
                 }
             });
         }
