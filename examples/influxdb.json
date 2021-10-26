@@ -1,0 +1,9 @@
+{
+    "host": "127.0.0.1",
+    "port": 8086,
+    "protocol": "http",
+    "bucket": "torque",
+    "organization": "org",
+    "token": "token",
+    "measurement": "device"
+}

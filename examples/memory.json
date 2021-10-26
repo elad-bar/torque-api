@@ -1,0 +1,5 @@
+{
+    "maximumInMemory": 10000,
+    "flushInterval": 60,
+    "outputDirectory": "/data"
+}

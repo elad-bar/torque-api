@@ -6,25 +6,15 @@ const {ConsoleClient} = require("../clients/console.js");
 const {MQTTClient} = require("../clients/mqtt.js");
 const {MemoryClient} = require("../clients/memory.js");
 const {InfluxDBClient} = require("../clients/influxdb.js");
+const middleware = require("./middlewares.js");
 
-const API_PORT = 8128;
-
-const ENDPOINT_TORQUE = "/api/torque";
-const ENDPOINT_TORQUE_SENSORS = "/api/torque/sensors";
-const ENDPOINT_TORQUE_DATA = "/api/torque/data";
-const ENDPOINT_TORQUE_RAW = "/api/torque/raw";
-const ENDPOINT_HOME = "";
-const ENDPOINT_DEBUG = "/api/debug";
-
-const CONFIG_FILE_DEVICES = "/config/devices.json";
-const CONFIG_FILE_SENSORS = "../torque.json";
-const CONFIG_FILE_README_MD = "./README.md";
-const CONFIG_FILE_README_HTML = "./README.html";
+const CONSTS = require("./consts.js");
 
 class TorqueAPI {
     constructor() {
-        this.devices = require(CONFIG_FILE_DEVICES);
-        this.sensors = require(CONFIG_FILE_SENSORS);
+        this.devices = require(CONSTS.CONFIG_FILE_DEVICES);
+        this.sensors = require(CONSTS.CONFIG_FILE_SENSORS);
+        this.config = null;
         this.api = express();
 
         this.clients = [
@@ -35,40 +25,38 @@ class TorqueAPI {
         ];
 
         this.readmeHtml = null;
-
-        this.slugifyConfig = {
-            replacement: '_',  // replace spaces with replacement character, defaults to `-`
-            remove: /[*+~.()/'"!:@]/g, // remove characters that match regex, defaults to `undefined`
-            lower: true,      // convert to lower case, defaults to `false`
-            strict: false,     // strip special characters except replacement, defaults to `false`
-            locale: 'en',       // language code of the locale to use
-            trim: true         // trim leading and trailing replacement chars, defaults to `true`
-          };
     };
 
     Initialize() {
         console.debug("Initializing TorqueAPI");
 
-        if (fs.existsSync(CONFIG_FILE_README_MD) && fs.existsSync(CONFIG_FILE_README_HTML)) {
-            const readmeFileContent = fs.readFileSync(CONFIG_FILE_README_MD, 'utf8');
+        if (fs.existsSync(CONSTS.CONFIG_FILE_README_MD) && fs.existsSync(CONSTS.CONFIG_FILE_README_HTML)) {
+            const readmeFileContent = fs.readFileSync(CONSTS.CONFIG_FILE_README_MD, CONSTS.README_FILE_ENCODING);
             const readmeContent = md.render(readmeFileContent);
     
-            const readmeHTMLContent = fs.readFileSync(CONFIG_FILE_README_HTML, 'utf8');
-            this.readmeHtml = readmeHTMLContent.replace("[README]", readmeContent)
+            const readmeHTMLContent = fs.readFileSync(CONSTS.CONFIG_FILE_README_HTML, CONSTS.README_FILE_ENCODING);
+            this.readmeHtml = readmeHTMLContent.replace(CONSTS.README_PLACEHOLDER, readmeContent)
         }
 
-        this.sensors.forEach(s => {
-            s.name = slugify(s.description, this.slugifyConfig);
-        });
+        if(fs.existsSync(CONSTS.CONFIG_FILE_API)) {
+            this.config = require(CONSTS.CONFIG_FILE_API);
 
-        this.clients.forEach(c => c.Initialize());
-
-        console.info(`Starting server on port ${API_PORT}`);
+            this.sensors.forEach(s => {
+                s.name = slugify(s.description, CONSTS.SLUGIFY_CONFIG);
+            });
     
-        this.bindEndpoints();
-
-        this.api.use(express.json());
-        this.api.listen(API_PORT);
+            this.clients.forEach(c => c.Initialize());
+    
+            console.info(`Starting API on port ${CONSTS.API_PORT}`);
+        
+            this.bindEndpoints();
+    
+            this.api.use(middleware);
+            this.api.listen(CONSTS.API_PORT);
+        } else {
+            console.error(`Failed to start API, '${CONSTS.CONFIG_FILE_API}' is missing`);
+        }
+        
     };
 
     bindEndpoints() {
@@ -82,41 +70,41 @@ class TorqueAPI {
         const sensors = this.sensors;
         const readmeHtml = this.readmeHtml;
 
-        this.api.get(ENDPOINT_DEBUG, function (req, res) {
+        this.api.get(CONSTS.ENDPOINT_DEBUG, function (req, res) {
             setResponseStatus(res, 200, { debug: consoleClient.enabled });
         });
         
-        this.api.post(ENDPOINT_DEBUG, function (req, res) {
+        this.api.post(CONSTS.ENDPOINT_DEBUG, function (req, res) {
             consoleClient.Enable();
     
             setResponseStatus(res, 200, { debug: consoleClient.enabled });
         });
     
-        this.api.delete(ENDPOINT_DEBUG, function (req, res) {
+        this.api.delete(CONSTS.ENDPOINT_DEBUG, function (req, res) {
             consoleClient.Disable();
     
             setResponseStatus(res, 200, { debug: consoleClient.enabled });
         });
     
-        this.api.get(ENDPOINT_HOME, function (req, res) {
+        this.api.get(CONSTS.ENDPOINT_HOME, function (req, res) {
             setResponseStatus(res, 200, readmeHtml);
         });
         
-        this.api.get(ENDPOINT_TORQUE_SENSORS, function (req, res) {
+        this.api.get(CONSTS.ENDPOINT_TORQUE_SENSORS, function (req, res) {
             setResponseStatus(res, 200, sensors);
         });
     
         if(memoryClient.enabled) {
-            this.api.get(ENDPOINT_TORQUE_RAW, function (req, res) {
+            this.api.get(CONSTS.ENDPOINT_TORQUE_RAW, function (req, res) {
                 setResponseStatus(res, 200, memoryClient.rawItems);
             });
 
-            this.api.get(ENDPOINT_TORQUE_DATA, function (req, res) {
+            this.api.get(CONSTS.ENDPOINT_TORQUE_DATA, function (req, res) {
                 setResponseStatus(res, 200, memoryClient.dataItems);
             });
         }
 
-        this.api.get(ENDPOINT_TORQUE, function (req, res) {
+        this.api.get(CONSTS.ENDPOINT_TORQUE, function (req, res) {
             clients.forEach(c => c.SendRaw(req.query));
     
             const data = convertToReadable(req.query, sensors, devices);
@@ -127,7 +115,7 @@ class TorqueAPI {
             } else {
                 clients.forEach(c => c.SendData(data));
     
-                setResponseStatus(res, 200, "OK!");
+                setResponseStatus(res, 200, CONSTS.TORQUE_STATS_RESPONSE_CONTENT);
             }
         });
     };
@@ -143,8 +131,8 @@ class TorqueAPI {
                 const tmpDataItem = data[key];
 
                 if(tmpDataItem !== undefined) {
-                    const isArray = torqueSensor.type === "array";
-                    const isString = torqueSensor.type === "string";
+                    const isArray = torqueSensor.type === CONSTS.TYPE_ARRAY;
+                    const isString = torqueSensor.type === CONSTS.TYPE_STRING;
                     
                     const dataItem = isArray ? tmpDataItem[0] : tmpDataItem;
                     
@@ -153,7 +141,7 @@ class TorqueAPI {
             });
 
             const username = result.username;
-            result["device"] = devices[username];
+            result[CONSTS.TORQUE_STATS_DEVICE] = devices[username];
         }
 
         return result;

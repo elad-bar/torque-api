@@ -1,9 +1,21 @@
 # Torque API to MQTT
-Listens to events from Torque App and publishes to MQTT Message or InfluxDB 2.0
+Listens to events from Torque App and publishes to vairous output plugins
+
+[GitHub](https://github.com/elad-bar/torque-api) | [Docker Hub](https://hub.docker.com/repository/docker/eladbar/torque-api)
 
 ## How to use
 
 ### Prepare configuration files
+Example files available in GitHub.
+
+#### api.json
+API Configurations
+
+```json
+{
+    "apiKey": "APIKEY"
+}
+```
 
 #### devices.json
 Describes the relation between an email configured in Torque App to a device name (as you would like it to be called)
@@ -13,9 +25,9 @@ Describes the relation between an email configured in Torque App to a device nam
 }
 ```
 
-#### mqtt.json
+#### mqtt.json (Optional)
 
-MQTT Broker configuration
+MQTT Broker configuration to publish MQTT Messages
 ```json
 {
     "host": "127.0.0.1",
@@ -27,9 +39,9 @@ MQTT Broker configuration
 }
 ```
 
-#### influxdb.json
+#### influxdb.json (Optional)
 
-InfluxDB configuration
+InfluxDB v2.0 configuration to store events
 ```json
 {
     "host": "127.0.0.1",
@@ -42,9 +54,9 @@ InfluxDB configuration
 }
 ```
 
-#### memory.json
+#### memory.json (Optional)
 
-Memory configuration
+Memory cache and file flush configuration
 ```json
 {
     "maximumInMemory": 10000,
@@ -64,6 +76,7 @@ Memory configuration
       - 8128:8128
     volumes:
       - ./config:/config
+      - ./data:/data
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
 
@@ -87,16 +100,16 @@ Check *Upload to web-server*.
 
 ## Endpoints
 
-Endpint | Method | Description
----|---|---|
-/ | GET | Readme | 
-/api/torque | GET | Report statistics (For Torque App) | 
-/api/torque/raw | GET | Raw event's data, Available when `memory.json` is configured |
-/api/torque/data | GET | Processed events, Available when `memory.json` is configured |
-/api/torque/sensors | GET | List all available sensors | 
-/api/debug | GET | Get debug mode | 
-/api/debug | POST | Set debug mode | 
-/api/debug | DELETE | Stop debug mode | 
+Endpint | Method | Description | API Key
+---|---|---|---|
+/ | GET | Readme | - |
+/api/torque | GET | Report statistics (For Torque App) |  - |
+/api/torque/raw/:apiKey | GET | Raw event's data, Available when `memory.json` is configured | + |
+/api/torque/data/:apiKey | GET | Processed events, Available when `memory.json` is configured | + |
+/api/torque/sensors/:apiKey | GET | List all available sensors |  + |
+/api/debug/:apiKey | GET | Get debug mode | + |
+/api/debug/:apiKey | POST | Set debug mode | + |
+/api/debug/:apiKey | DELETE | Stop debug mode | + |
 
 ## MQTT Messages
 According to the topic configured in `mqtt.json` 

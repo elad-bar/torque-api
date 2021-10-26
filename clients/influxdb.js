@@ -3,6 +3,7 @@ const Influxdb = require('influxdb-v2');
 const {ClientBase} = require("./client.js");
 
 const CONFIG_FILE_INFLUXDB = "/config/influxdb.json";
+const INVALID_CHARS = [" ", ","];
 
 class InfluxDBClient extends ClientBase {
     constructor() {
@@ -76,11 +77,9 @@ class InfluxDBClient extends ClientBase {
     }
 
     fixTag(data) {
-        const invalidChars = [" ", ","];
-        
         data = data !== undefined && data !== null ? data.toString() : data;
 
-        invalidChars.forEach(c => {
+        INVALID_CHARS.forEach(c => {
             data = data.split(c).join(`\\${c}`);
         });
         
