@@ -1,10 +1,6 @@
-examples
 node_modules
 vscode
-config
 npm-debug.log
 
-.config/
 .vscode/
 .node_modules/
-.examples/
