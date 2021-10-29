@@ -7,8 +7,6 @@ const ENDPOINT_TORQUE_RAW = "/api/torque/raw";
 const ENDPOINT_HOME = "";
 const ENDPOINT_DEBUG = "/api/debug";
 
-const API_KEY_PARAM = "/:apiKey";
-
 const SECURED_ENDPOINTS = [
     ENDPOINT_TORQUE_SENSORS,
     ENDPOINT_TORQUE_DATA,
@@ -16,8 +14,7 @@ const SECURED_ENDPOINTS = [
     ENDPOINT_DEBUG
 ];
 
-const CONFIG_FILE_API = "/config/api.json";
-const CONFIG_FILE_DEVICES = "/config/devices.json";
+const CONFIG_FILE = "../config.json";
 const CONFIG_FILE_SENSORS = "../torque.json";
 const CONFIG_FILE_README_MD = "./README.md";
 const CONFIG_FILE_README_HTML = "./README.html";
@@ -42,15 +39,13 @@ const TYPE_ARRAY = "array";
 
 module.exports = {
     API_PORT,
-    API_KEY_PARAM,
     ENDPOINT_TORQUE,
     ENDPOINT_TORQUE_SENSORS,
     ENDPOINT_TORQUE_DATA,
     ENDPOINT_TORQUE_RAW,
     ENDPOINT_HOME,
     ENDPOINT_DEBUG,
-    CONFIG_FILE_API,
-    CONFIG_FILE_DEVICES,
+    CONFIG_FILE,
     CONFIG_FILE_SENSORS,
     CONFIG_FILE_README_MD,
     CONFIG_FILE_README_HTML,

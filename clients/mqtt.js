@@ -1,26 +1,17 @@
-const fs = require('fs');
 const mqtt = require('mqtt');
 const {ClientBase} = require("./client.js");
-
-const CONFIG_FILE_MQTT = "/config/mqtt.json";
 
 class MQTTClient extends ClientBase {
     constructor() {
         super();
 
         this.client = null;
-        this.config = null
+        this.name = "mqtt";
       };
 
-    Initialize() {
+    Connect() {
         try {
-            console.info("Initializing MQTTClient");
-
-            if (fs.existsSync(CONFIG_FILE_MQTT)) {
-                this.config = require(CONFIG_FILE_MQTT);
-
-                this.enabled = true;
-
+            if (this.enabled) {
                 const connectUrl = `mqtt://${this.config.host}:${this.config.port}`;
                 console.info(`Starting connection to MQTT Broker '${connectUrl}'`);
                 

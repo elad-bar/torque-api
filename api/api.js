@@ -2,6 +2,7 @@ const express = require('express');
 const slugify = require('slugify');
 const fs = require('fs');
 const md = require('markdown-it')();
+
 const {ConsoleClient} = require("../clients/console.js");
 const {MQTTClient} = require("../clients/mqtt.js");
 const {MemoryClient} = require("../clients/memory.js");
@@ -13,7 +14,7 @@ const CONSTS = require("./consts.js");
 class TorqueAPI {
     constructor() {
         this.sensors = require(CONSTS.CONFIG_FILE_SENSORS);
-        this.config = null;
+        this.config = require(CONSTS.CONFIG_FILE); 
         this.api = express();
         this.middleware = new APIMiddleware();
 
@@ -38,14 +39,14 @@ class TorqueAPI {
             this.readmeHtml = readmeHTMLContent.replace(CONSTS.README_PLACEHOLDER, readmeContent)
         }     
 
-        this.middleware.Initialize();
+        this.middleware.Initialize(this.config);
 
         if(this.middleware.enabled) {
             this.sensors.forEach(s => {
                 s.name = slugify(s.description, CONSTS.SLUGIFY_CONFIG);
             });
     
-            this.clients.forEach(c => c.Initialize());
+            this.clients.forEach(c => c.Initialize(this.config));
     
             console.info(`Starting API on port ${CONSTS.API_PORT}`);
             
@@ -53,9 +54,8 @@ class TorqueAPI {
     
             this.api.listen(CONSTS.API_PORT);
         } else {
-            console.error(`Failed to start API, '${CONSTS.CONFIG_FILE_API}' is missing`);
-        }
-        
+            console.error(`Cannot start API`);
+        }        
     };
 
     bindEndpoints() {

@@ -1,8 +1,6 @@
-const fs = require('fs');
 const Influxdb = require('influxdb-v2');
 const {ClientBase} = require("./client.js");
 
-const CONFIG_FILE_INFLUXDB = "/config/influxdb.json";
 const INVALID_CHARS = [" ", ","];
 
 class InfluxDBClient extends ClientBase {
@@ -10,7 +8,7 @@ class InfluxDBClient extends ClientBase {
         super();
 
         this.client = null;
-        this.config = null
+        this.name = "influxdb";
       };
 
     get IsConnected() {
@@ -21,15 +19,9 @@ class InfluxDBClient extends ClientBase {
         return this.enabled;
     }
 
-    Initialize() {
+    Connect() {
         try {
-            console.info("Initializing InfluxDBClient");
-            
-            if (fs.existsSync(CONFIG_FILE_INFLUXDB)) {
-                this.config = require(CONFIG_FILE_INFLUXDB);
-
-                this.enabled = true;
-
+            if (this.enabled) {
                 const url = `${this.config.protocol}://${this.config.host}:${this.config.port}`;
                 console.info(`Starting connection to InfluxDB '${url}'`);
         

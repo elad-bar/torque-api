@@ -5,7 +5,7 @@ class ConsoleClient extends ClientBase {
         super();
 
         this.client = null;
-        this.config = null
+        this.name = "console";
       };
 
     Initialize() {

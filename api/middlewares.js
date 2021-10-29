@@ -5,31 +5,39 @@ class APIMiddleware {
     constructor() {
         this.config = null;
         this.enabled = false;
-        this.devices = null;
     }
 
-    Initialize() {
+    get devices() {
+        return this.config.authentication.devices;
+    }
+
+    get apiKey() {
+        return this.config.authentication.apiKey;
+    }
+
+    Initialize(config) {
         console.info("Initializing ApiKeyMiddleware");
-        
-        if (fs.existsSync(CONSTS.CONFIG_FILE_DEVICES)) {
-            this.devices = require(CONSTS.CONFIG_FILE_DEVICES);
 
-            this.enabled = this.devices !== undefined && this.devices !== null && Object.keys(this.devices).length > 0;
-        } else {
-            console.error("Devices mapping not found in /config directoy");
-        }
+        this.config = config;
 
-        if (fs.existsSync(CONSTS.CONFIG_FILE_API)) {
-            this.config = require(CONSTS.CONFIG_FILE_API);
+        if(this.config && this.config.authentication) {
+            const auth = this.config.authentication;
 
-            const hasApiKey = this.config.apiKey !== undefined && this.config.apiKey !== null && this.config.apiKey.length > 0;
+            const hasDevices = auth.devices && Object.keys(auth.devices).length > 0;
+            const hasApiKey = auth.apiKey && auth.apiKey.length > 0;
+
+            if(!hasDevices) {
+                console.error("Devices mapping is not available in configuration");
+            }
 
             if(!hasApiKey) {
-                this.enabled = false;
+                console.error("API Key is not available in configuration");
             }
+
+            this.enabled = hasDevices && hasApiKey;
+
         } else {
-            console.error("API configuration not found in /config directoy");
-            this.enabled = false;
+            console.error("Invalid configuration");
         }
     }
 
@@ -53,9 +61,9 @@ class APIMiddleware {
         } else {
             const username = this.devices[email];
 
-            if(username === undefined || username === null) {
-                error = `Invalid username`;
-                errorLogMessage = `${error}, EMail: ${email}`;
+            if(!username) {
+                error = `Failed to authenticate request to ${req.path}, Invalid EMail`;
+                errorLogMessage = `${error} '${email}'`;
             }
         }        
 
@@ -71,10 +79,10 @@ class APIMiddleware {
     apiKeyCheck(req, res, next) {
         const apiKey = req.query.apiKey;
 
-        if(this.config.apiKey !== apiKey) {
-            const error = `Invalid API Key`;
+        if(this.apiKey !== apiKey) {
+            const error = `Failed to authenticate request to ${req.path}, Invalid API Key`;
 
-            console.error(`${error}, Key: ${apiKey}`);
+            console.error(`${error} '${apiKey}'`);
             res.status(401).send({ error });
 
             return;

@@ -1,78 +1,91 @@
 const fs = require('fs');
 const {ClientBase} = require("./client.js");
 
-const CONFIG_FILE_MEMORY = "/config/memory.json";
-
 class MemoryClient extends ClientBase {
     constructor() {
         super();
 
         this.client = null;
-        this.config = null;
+        this.name = "memory";
         this.intervalId = null;
 
-        this.dataItems = [];
-        this.rawItems = [];
-      };
+        this.data = {
+            "raw": [],
+            "data": []
+        };
+    };
 
-    Initialize() {
-        console.info("Initializing MemoryClient");
-
-        if (fs.existsSync(CONFIG_FILE_MEMORY)) {
-            this.config = require(CONFIG_FILE_MEMORY);
-
-            this.enabled = true;
+    Connect() {
+        if (this.enabled) {
             this.isConnected = true;  
             
             if(fs.existsSync(this.config.outputDirectory)) {
-                this.intervalId = setInterval(this.flush, this.config.flushInterval * 1000, this);
+                this.load();
+
+                this.intervalId = setInterval(this.flush.bind(this), this.config.flushInterval * 1000, this);
             } else {
                 console.error(`Directory ${this.config.outputDirectory} not exist`);
             }
         }
     };
 
-    SendRaw(message) {
+    send(key, message) {
         if(this.isConnected && this.enabled) {
-            this.rawItems.push({
+            const data = this.data[key];
+            data.push({
                 timestamp: new Date().toISOString(),
                 data: message
             });
 
-            if(this.rawItems.length > this.config.maximumInMemory) {
-                this.rawItems = this.rawItems.slice(this.config.maximumInMemory * -1);
+            if(data.length > this.config.maximumInMemory) {
+                data = data.slice(this.config.maximumInMemory * -1);
             }
+
+            this.data[key] = data;
         }
+    }
+
+    SendRaw(message) {
+        this.send("raw", message);
     };
 
     SendData(message) {
-        if(this.isConnected && this.enabled) {
-            this.dataItems.push({
-                timestamp: new Date().toISOString(),
-                data: message
-            });
-
-            if(this.dataItems.length > this.config.maximumInMemory) {
-                this.dataItems = this.dataItems.slice(this.config.maximumInMemory * -1);
-            }
-        }
+        this.send("data", message);
     };
 
-    flush(self) {
-        const files = {
-            "raw": self.rawItems,
-            "data": self.dataItems
-        };
+    flush() {
+        console.info("Flushing data from  memory");
 
-        const outputDirectory = self.config.outputDirectory;
+        const outputDirectory = this.config.outputDirectory;
 
-        Object.keys(files).forEach(k => {
-            fs.writeFile (`${outputDirectory}/${k}.json`, JSON.stringify(files[k]), function(err) {
+        Object.keys(this.data).forEach(k => {
+            const items = this.data[k];
+
+            fs.writeFile (`${outputDirectory}/${k}.json`, JSON.stringify(items), function(err) {
                 if(err)  {
                     console.error(`Failed to store ${k}`);
                 }
              });
         });        
+    }
+
+    load() {
+        console.info("Loading data to memory");
+
+        const outputDirectory = this.config.outputDirectory;
+
+        Object.keys(this.data).forEach(k => {
+            fs.readFile (`${outputDirectory}/${k}.json`, (err, data) => {
+                if(err)  {
+                    console.error(`Failed to load ${k}`);
+                }
+
+                const items = JSON.parse(data);
+                this.data[k] = items;
+
+                console.info(`Loaded ${Object.keys(items).length} ${k} items`);
+            });
+        });
     }
 };
 
