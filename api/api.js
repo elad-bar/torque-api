@@ -6,16 +6,16 @@ const {ConsoleClient} = require("../clients/console.js");
 const {MQTTClient} = require("../clients/mqtt.js");
 const {MemoryClient} = require("../clients/memory.js");
 const {InfluxDBClient} = require("../clients/influxdb.js");
-const middleware = require("./middlewares.js");
+const {APIMiddleware} = require("./middlewares.js");
 
 const CONSTS = require("./consts.js");
 
 class TorqueAPI {
     constructor() {
-        this.devices = require(CONSTS.CONFIG_FILE_DEVICES);
         this.sensors = require(CONSTS.CONFIG_FILE_SENSORS);
         this.config = null;
         this.api = express();
+        this.middleware = new APIMiddleware();
 
         this.clients = [
             new ConsoleClient(),
@@ -36,11 +36,11 @@ class TorqueAPI {
     
             const readmeHTMLContent = fs.readFileSync(CONSTS.CONFIG_FILE_README_HTML, CONSTS.README_FILE_ENCODING);
             this.readmeHtml = readmeHTMLContent.replace(CONSTS.README_PLACEHOLDER, readmeContent)
-        }
+        }     
 
-        if(fs.existsSync(CONSTS.CONFIG_FILE_API)) {
-            this.config = require(CONSTS.CONFIG_FILE_API);
+        this.middleware.Initialize();
 
+        if(this.middleware.enabled) {
             this.sensors.forEach(s => {
                 s.name = slugify(s.description, CONSTS.SLUGIFY_CONFIG);
             });
@@ -48,10 +48,9 @@ class TorqueAPI {
             this.clients.forEach(c => c.Initialize());
     
             console.info(`Starting API on port ${CONSTS.API_PORT}`);
-        
+            
             this.bindEndpoints();
     
-            this.api.use(middleware);
             this.api.listen(CONSTS.API_PORT);
         } else {
             console.error(`Failed to start API, '${CONSTS.CONFIG_FILE_API}' is missing`);
@@ -63,24 +62,26 @@ class TorqueAPI {
         const clients = this.clients;
         const consoleClient = clients[0];
         const memoryClient = clients[1];
+        const apiKeyCheck = this.middleware.apiKeyCheck.bind(this.middleware);
+        const userCheck = this.middleware.userCheck.bind(this.middleware);
         
-        const devices = this.devices;
+        const devices = this.middleware.devices;
         const setResponseStatus = this.setResponseStatus;
         const convertToReadable = this.convertToReadable;
         const sensors = this.sensors;
         const readmeHtml = this.readmeHtml;
 
-        this.api.get(CONSTS.ENDPOINT_DEBUG, function (req, res) {
+        this.api.get(CONSTS.ENDPOINT_DEBUG, apiKeyCheck, function (req, res) {
             setResponseStatus(res, 200, { debug: consoleClient.enabled });
         });
         
-        this.api.post(CONSTS.ENDPOINT_DEBUG, function (req, res) {
+        this.api.post(CONSTS.ENDPOINT_DEBUG, apiKeyCheck, function (req, res) {
             consoleClient.Enable();
     
             setResponseStatus(res, 200, { debug: consoleClient.enabled });
         });
     
-        this.api.delete(CONSTS.ENDPOINT_DEBUG, function (req, res) {
+        this.api.delete(CONSTS.ENDPOINT_DEBUG, apiKeyCheck, function (req, res) {
             consoleClient.Disable();
     
             setResponseStatus(res, 200, { debug: consoleClient.enabled });
@@ -90,33 +91,28 @@ class TorqueAPI {
             setResponseStatus(res, 200, readmeHtml);
         });
         
-        this.api.get(CONSTS.ENDPOINT_TORQUE_SENSORS, function (req, res) {
+        this.api.get(CONSTS.ENDPOINT_TORQUE_SENSORS, apiKeyCheck, function (req, res) {
             setResponseStatus(res, 200, sensors);
         });
     
         if(memoryClient.enabled) {
-            this.api.get(CONSTS.ENDPOINT_TORQUE_RAW, function (req, res) {
+            this.api.get(CONSTS.ENDPOINT_TORQUE_RAW, apiKeyCheck, function (req, res) {
                 setResponseStatus(res, 200, memoryClient.rawItems);
             });
 
-            this.api.get(CONSTS.ENDPOINT_TORQUE_DATA, function (req, res) {
+            this.api.get(CONSTS.ENDPOINT_TORQUE_DATA, apiKeyCheck, function (req, res) {
                 setResponseStatus(res, 200, memoryClient.dataItems);
             });
         }
 
-        this.api.get(CONSTS.ENDPOINT_TORQUE, function (req, res) {
+        this.api.get(CONSTS.ENDPOINT_TORQUE, userCheck, function (req, res) {
             clients.forEach(c => c.SendRaw(req.query));
     
             const data = convertToReadable(req.query, sensors, devices);
             
-            if(data.device === undefined || data.device === null) {
-                setResponseStatus(res, 403, `Unknown device, Username: ${data.username}`);
+            clients.forEach(c => c.SendData(data));
     
-            } else {
-                clients.forEach(c => c.SendData(data));
-    
-                setResponseStatus(res, 200, CONSTS.TORQUE_STATS_RESPONSE_CONTENT);
-            }
+            setResponseStatus(res, 200, CONSTS.TORQUE_STATS_RESPONSE_CONTENT);
         });
     };
 

@@ -104,12 +104,16 @@ Endpint | Method | Description | API Key
 ---|---|---|---|
 / | GET | Readme | - |
 /api/torque | GET | Report statistics (For Torque App) |  - |
-/api/torque/raw/:apiKey | GET | Raw event's data, Available when `memory.json` is configured | + |
-/api/torque/data/:apiKey | GET | Processed events, Available when `memory.json` is configured | + |
-/api/torque/sensors/:apiKey | GET | List all available sensors |  + |
-/api/debug/:apiKey | GET | Get debug mode | + |
-/api/debug/:apiKey | POST | Set debug mode | + |
-/api/debug/:apiKey | DELETE | Stop debug mode | + |
+/api/torque/raw | GET | Raw event's data, Available when `memory.json` is configured | + |
+/api/torque/data | GET | Processed events, Available when `memory.json` is configured | + |
+/api/torque/sensors | GET | List all available sensors |  + |
+/api/debug | GET | Get debug mode | + |
+/api/debug | POST | Set debug mode | + |
+/api/debug | DELETE | Stop debug mode | + |
+
+### Endpoint API Key
+
+Secured endpoints must contain API key, send additional query string paramter `?apiKey=APIKEY`, replace `APIKEY` as defined in the `api.json`
 
 ## MQTT Messages
 According to the topic configured in `mqtt.json` 

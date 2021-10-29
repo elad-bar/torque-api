@@ -1,11 +1,13 @@
 const API_PORT = 8128;
 
 const ENDPOINT_TORQUE = "/api/torque";
-const ENDPOINT_TORQUE_SENSORS = "/api/torque/sensors/:apiKey/";
-const ENDPOINT_TORQUE_DATA = "/api/torque/data/:apiKey/";
-const ENDPOINT_TORQUE_RAW = "/api/torque/raw/:apiKey/";
+const ENDPOINT_TORQUE_SENSORS = "/api/torque/sensors";
+const ENDPOINT_TORQUE_DATA = "/api/torque/data";
+const ENDPOINT_TORQUE_RAW = "/api/torque/raw";
 const ENDPOINT_HOME = "";
-const ENDPOINT_DEBUG = "/api/debug/:apiKey/";
+const ENDPOINT_DEBUG = "/api/debug";
+
+const API_KEY_PARAM = "/:apiKey";
 
 const SECURED_ENDPOINTS = [
     ENDPOINT_TORQUE_SENSORS,
@@ -40,6 +42,7 @@ const TYPE_ARRAY = "array";
 
 module.exports = {
     API_PORT,
+    API_KEY_PARAM,
     ENDPOINT_TORQUE,
     ENDPOINT_TORQUE_SENSORS,
     ENDPOINT_TORQUE_DATA,
