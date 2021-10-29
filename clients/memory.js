@@ -15,6 +15,14 @@ class MemoryClient extends ClientBase {
         };
     };
 
+    get rawDataItems(){
+        return this.data["raw"];
+    };
+
+    get dataItems(){
+        return this.data["data"];
+    };
+
     Connect() {
         if (this.enabled) {
             this.isConnected = true;  
@@ -54,8 +62,6 @@ class MemoryClient extends ClientBase {
     };
 
     flush() {
-        console.info("Flushing data from  memory");
-
         const outputDirectory = this.config.outputDirectory;
 
         Object.keys(this.data).forEach(k => {
@@ -70,8 +76,6 @@ class MemoryClient extends ClientBase {
     }
 
     load() {
-        console.info("Loading data to memory");
-
         const outputDirectory = this.config.outputDirectory;
 
         Object.keys(this.data).forEach(k => {

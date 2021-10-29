@@ -97,7 +97,7 @@ class TorqueAPI {
     
         if(memoryClient.enabled) {
             this.api.get(CONSTS.ENDPOINT_TORQUE_RAW, apiKeyCheck, function (req, res) {
-                setResponseStatus(res, 200, memoryClient.rawItems);
+                setResponseStatus(res, 200, memoryClient.rawDataItems);
             });
 
             this.api.get(CONSTS.ENDPOINT_TORQUE_DATA, apiKeyCheck, function (req, res) {
